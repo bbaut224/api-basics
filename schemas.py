@@ -26,6 +26,7 @@ class Token(BaseModel):
 class PostBase(BaseModel):
     title: str
     content: str
+    likes: int
 
 class PostCreate(PostBase):
     pass

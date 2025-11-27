@@ -19,5 +19,13 @@ class Post(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String)
     content = Column(String)
+
+    
+    # Сразу задаём default=0, чтобы новый пост начинался с нуля лайков
+    likes = Column(Integer, default=0)
+
+    # Внешний ключ — пользователь, который создал пост
     owner_id = Column(Integer, ForeignKey("users.id"))
+
+    # Связь с владельцем поста
     owner = relationship("User", back_populates="posts")
