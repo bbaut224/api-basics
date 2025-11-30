@@ -7,6 +7,14 @@ from .models import User, Post
 from .schemas import UserCreate, UserOut, PostBase, PostOut
 from .auth import fake_hash, get_current_user
 from .websocket_manager import ConnectionManager
+from .chat_manager import chat_manager
+
+from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect
+from sqlalchemy.orm import Session
+from .database import engine, get_db
+from . import models, schemas
+from .chat_manager import chat_manager
+
 
 app = FastAPI()
 
@@ -62,3 +70,18 @@ async def ws_likes(websocket: WebSocket):
             await websocket.receive_text()
     except WebSocketDisconnect:
         likes_manager.disconnect(websocket)
+
+@app.websocket("/ws/chat/{user_id}")
+async def websocket_chat(websocket: WebSocket, user_id: int):
+    await chat_manager.connect(user_id, websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            receiver = data["to"]
+            msg = data["message"]
+            await chat_manager.send_personal_message(receiver, {
+                "from": user_id,
+                "message": msg
+            })
+    except WebSocketDisconnect:
+        chat_manager.disconnect(user_id, websocket)

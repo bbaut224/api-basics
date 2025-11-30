@@ -1,23 +1,28 @@
 from pydantic import BaseModel
 
-class UserBase(BaseModel):
+class UserCreate(BaseModel):
     username: str
-
-class UserCreate(UserBase):
     password: str
 
-class UserOut(UserBase):
+class UserOut(BaseModel):
     id: int
+    username: str
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class PostCreate(BaseModel):
+    content: str
+
+class PostOut(BaseModel):
+    id: int
+    content: str
+    likes: int
+    user_id: int
+    class Config:
+        from_attributes = True
+
 
 class PostBase(BaseModel):
     title: str
     content: str
 
-class PostOut(PostBase):
-    id: int
-    likes: int
-    author_id: int
-    class Config:
-        orm_mode = True

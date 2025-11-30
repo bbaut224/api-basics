@@ -2,145 +2,126 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Test Frontend</title>
+    <title>Chat Test</title>
     <style>
-        body { font-family: Arial; max-width: 600px; margin: 20px auto; }
-        input, textarea { width: 100%; padding: 8px; margin: 6px 0; }
-        button { padding: 8px 12px; margin-top: 10px; }
-        .block { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 6px; }
-        .post { background: #f6f6f6; padding: 10px; margin: 5px 0; border-radius: 5px; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            padding-top: 40px;
+        }
+
+        .chat-box {
+            width: 400px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        #messages {
+            height: 250px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background: #fafafa;
+        }
+
+        .msg-self {
+            text-align: right;
+            color: green;
+            margin: 4px 0;
+        }
+
+        .msg-other {
+            text-align: left;
+            color: blue;
+            margin: 4px 0;
+        }
+
+        input, button {
+            padding: 8px;
+            margin-bottom: 10px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #sendBox {
+            display: none;
+        }
     </style>
 </head>
 <body>
 
-<h1>Мини фронтенд</h1>
+<div class="chat-box">
+    <h3>WebSocket Chat</h3>
 
-<div class="block">
-    <h2>Регистрация</h2>
-    <input id="reg-name" placeholder="Имя">
-    <input id="reg-email" placeholder="Email">
-    <input id="reg-pass" type="password" placeholder="Пароль">
-    <button onclick="register()">Зарегистрироваться</button>
-    <p id="reg-status"></p>
-</div>
+    <div id="connectBox">
+        <input id="userId" type="number" placeholder="Ваш user_id">
+        <button onclick="connect()">Подключиться</button>
+    </div>
 
-<div class="block">
-    <h2>Логин</h2>
-    <input id="log-email" placeholder="Email">
-    <input id="log-pass" type="password" placeholder="Пароль">
-    <button onclick="login()">Войти</button>
-    <p id="log-status"></p>
-</div>
+    <div id="sendBox">
+        <p>Вы подключены как: <b id="me"></b></p>
 
-<div class="block">
-    <h2>Создать пост</h2>
-    <input id="post-title" placeholder="Заголовок">
-    <textarea id="post-content" placeholder="Текст"></textarea>
-    <button onclick="createPost()">Создать</button>
-    <p id="post-status"></p>
-</div>
+        <div id="messages"></div>
 
-<div class="block">
-    <h2>Мои посты</h2>
-    <button onclick="loadPosts()">Загрузить</button>
-    <div id="posts"></div>
+        <input id="receiverId" type="number" placeholder="Отправить пользователю (user_id)">
+        <input id="msg" type="text" placeholder="Сообщение...">
+        <button onclick="sendMessage()">Отправить</button>
+    </div>
 </div>
 
 <script>
-    const API = "http://127.0.0.1:8000";
-    let token = "";
+    let ws;
+    
+    function connect() {
+        const userId = document.getElementById("userId").value;
+        if (!userId) return alert("Введите user_id");
 
-    async function register() {
-        const data = {
-            name: document.getElementById("reg-name").value,
-            email: document.getElementById("reg-email").value,
-            password: document.getElementById("reg-pass").value,
+        ws = new WebSocket(`ws://localhost:8000/ws/chat/${userId}`);
+
+        ws.onopen = () => {
+            document.getElementById("connectBox").style.display = "none";
+            document.getElementById("sendBox").style.display = "block";
+            document.getElementById("me").innerText = userId;
         };
 
-        const res = await fetch(API + "/register", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(data)
-        });
-
-        document.getElementById("reg-status").innerText =
-            res.ok ? "Успешно!" : "Ошибка: " + (await res.text());
-    }
-
-
-    async function login() {
-        const data = {
-            email: document.getElementById("log-email").value,
-            password: document.getElementById("log-pass").value,
-        };
-
-        const res = await fetch(API + "/login", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(data)
-        });
-
-        if (res.ok) {
-            const body = await res.json();
-            token = body.access_token;
-            document.getElementById("log-status").innerText = "Успешный вход! Токен получен";
-        } else {
-            document.getElementById("log-status").innerText = "Ошибка: " + (await res.text());
-        }
-    }
-
-
-    async function createPost() {
-        if (!token) {
-            alert("Сначала войди!");
-            return;
-        }
-
-        const data = {
-            title: document.getElementById("post-title").value,
-            content: document.getElementById("post-content").value,
-        };
-
-        const res = await fetch(API + "/posts", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + token
-            },
-            body: JSON.stringify(data)
-        });
-
-        document.getElementById("post-status").innerText =
-            res.ok ? "Пост создан!" : "Ошибка: " + (await res.text());
-    }
-
-
-    async function loadPosts() {
-        if (!token) {
-            alert("Сначала войди!");
-            return;
-        }
-
-        const res = await fetch(API + "/posts", {
-            headers: {"Authorization": "Bearer " + token}
-        });
-
-        const container = document.getElementById("posts");
-        container.innerHTML = "";
-
-        if (!res.ok) {
-            container.innerText = "Ошибка загрузки постов";
-            return;
-        }
-
-        const posts = await res.json();
-
-        posts.forEach(p => {
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            const box = document.getElementById("messages");
             const div = document.createElement("div");
-            div.className = "post";
-            div.innerHTML = `<b>${p.title}</b><br>${p.content}`;
-            container.appendChild(div);
-        });
+            div.className = "msg-other";
+            div.textContent = `От ${data.from}: ${data.message}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        };
+
+        ws.onclose = () => alert("Соединение закрыто");
+    }
+
+    function sendMessage() {
+        const receiver = document.getElementById("receiverId").value;
+        const message = document.getElementById("msg").value;
+
+        if (!receiver || !message) return alert("Заполните поля");
+
+        ws.send(JSON.stringify({
+            to: Number(receiver),
+            message: message
+        }));
+
+        const box = document.getElementById("messages");
+        const div = document.createElement("div");
+        div.className = "msg-self";
+        div.textContent = `Вы → ${receiver}: ${message}`;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+
+        document.getElementById("msg").value = "";
     }
 </script>
 
